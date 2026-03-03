@@ -1,28 +1,30 @@
 {
-  "name": "fx-remitBot",
-  "version": "0.1.0",
-  "description": "	",
-  "private": true,
+  "name": "fx-remitbot",
+  "version": "1.0.0",
+  "main": "index.js",
   "scripts": {
-    "build": "turbo build",
-    "dev": "turbo dev",
-    "lint": "turbo lint",
-    "clean": "turbo clean",
-    "type-check": "turbo type-check",
-    "contracts:compile": "turbo run compile --filter=hardhat",
-    "contracts:test": "turbo run test --filter=hardhat",
-    "contracts:deploy": "turbo run deploy --filter=hardhat",
-    "contracts:deploy:celo-sepolia": "turbo run deploy:celo-sepolia --filter=hardhat",
-    "contracts:deploy:celo": "turbo run deploy:celo --filter=hardhat"
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.98.0",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "node-cron": "^4.2.1",
+    "node-telegram-bot-api": "^0.67.0",
+    "twilio": "^5.12.2",
+    "viem": "^2.46.3",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@types/node": "^20.8.0",
-    "turbo": "^1.10.16",
-    "typescript": "^5.2.2"
-  },
-  "packageManager": "pnpm@8.10.0",
-  "engines": {
-    "node": ">=18.0.0",
-    "pnpm": ">=8.0.0"
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.3.3",
+    "@types/node-cron": "^3.0.11",
+    "@types/node-telegram-bot-api": "^0.64.14",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
   }
 }
