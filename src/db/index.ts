@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
-import { Database } from './types.js';
+import type { Database } from './types.js';
 
 dotenv.config();
 
@@ -11,7 +11,7 @@ if (!supabaseUrl || !supabaseKey) {
   console.warn('Supabase credentials missing. Database features will not work.');
 }
 
-export const supabase = createClient<Database>(supabaseUrl, supabaseKey);
+export const supabase = createClient<any>(supabaseUrl, supabaseKey);
 
 // --- User Helpers ---
 
