@@ -1,47 +1,55 @@
 import express from 'express';
+import type TelegramBot from 'node-telegram-bot-api';
 import dotenv from 'dotenv';
-import { json } from 'body-parser';
+import { setTelegramWebhook, parseTelegramUpdate } from './services/telegram.js';
 import { routeMessage } from './services/router.js';
 
 dotenv.config();
 
 const app = express();
-app.use(json());
+app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
 
-app.get('/health', (req, res) => {
-    res.send({ status: 'OK' });
+// Health check
+app.get('/health', (_req, res) => {
+  res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
 // Telegram Webhook
 app.post('/webhooks/telegram', async (req, res) => {
-    const { message } = req.body;
-    if (message && message.text) {
-        await routeMessage({
-            platform: 'telegram',
-            senderId: message.from.id.toString(),
-            text: message.text,
-            raw: req.body
-        });
+  try {
+    const update = req.body as TelegramBot.Update;
+    const { chatId, text, userId } = parseTelegramUpdate(update);
+
+    if (chatId && text && userId) {
+      await routeMessage({
+        platform: 'telegram',
+        senderId: userId.toString(),
+        chatId: chatId.toString(),
+        text,
+        raw: update,
+      });
     }
+
     res.sendStatus(200);
+  } catch (err) {
+    console.error('Telegram webhook error:', err);
+    res.sendStatus(200); // Always 200 to Telegram to avoid retry loops
+  }
 });
 
-// WhatsApp Webhook (Twilio)
-app.post('/webhooks/whatsapp', async (req, res) => {
-    const { From, Body } = req.body;
-    if (From && Body) {
-        await routeMessage({
-            platform: 'whatsapp',
-            senderId: From,
-            text: Body,
-            raw: req.body
-        });
-    }
-    res.sendStatus(200);
+// Start server
+app.listen(PORT, async () => {
+  console.log(` FX RemitBot server running on port ${PORT}`);
+
+  // Register webhook if BACKEND_URL is set
+  const backendUrl = process.env.BACKEND_URL;
+  if (backendUrl) {
+    await setTelegramWebhook(backendUrl);
+  } else {
+    console.log(' BACKEND_URL not set. Set it with ngrok URL to register Telegram webhook.');
+  }
 });
 
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-});
+export default app;
