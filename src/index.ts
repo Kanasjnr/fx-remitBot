@@ -3,6 +3,7 @@ import type TelegramBot from 'node-telegram-bot-api';
 import dotenv from 'dotenv';
 import { setTelegramWebhook, parseTelegramUpdate } from './services/telegram.js';
 import { routeMessage } from './services/router.js';
+import { executeBeneficiaryTool } from './services/tools/beneficiaries.js';
 
 dotenv.config();
 
@@ -14,6 +15,35 @@ const PORT = process.env.PORT || 3000;
 // Health check
 app.get('/health', (_req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
+// Internal OpenClaw Skill Execution Route
+app.post('/api/internal/beneficiary', async (req, res) => {
+  try {
+    const { action, name, address, telegramId } = req.body;
+    
+    if (!telegramId) {
+      return res.status(400).json({ error: 'Missing telegramId' });
+    }
+
+    let toolName = '';
+    let args: any = {};
+    
+    if (action === 'add') {
+      toolName = 'add_beneficiary';
+      args = { name, address };
+    } else if (action === 'list') {
+      toolName = 'list_beneficiaries';
+    } else {
+      return res.status(400).json({ error: 'Invalid action' });
+    }
+
+    const resultString = await executeBeneficiaryTool(toolName, args, telegramId);
+    res.status(200).json(JSON.parse(resultString));
+  } catch (err: any) {
+    console.error('Internal API error:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Telegram Webhook
@@ -43,7 +73,6 @@ app.post('/webhooks/telegram', async (req, res) => {
 app.listen(PORT, async () => {
   console.log(` FX RemitBot server running on port ${PORT}`);
 
-  // Register webhook if BACKEND_URL is set
   const backendUrl = process.env.BACKEND_URL;
   if (backendUrl) {
     await setTelegramWebhook(backendUrl);

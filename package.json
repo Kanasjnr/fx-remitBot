@@ -20,6 +20,7 @@
     "express": "^5.2.1",
     "node-cron": "^4.2.1",
     "node-telegram-bot-api": "^0.67.0",
+    "openclaw": "^0.0.1",
     "twilio": "^5.12.2",
     "viem": "^2.46.3",
     "zod": "^4.3.6"
