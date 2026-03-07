@@ -1,5 +1,6 @@
 import { sendTelegramMessage } from './telegram.js';
 import { getUserByTelegramId, upsertUser } from '../db/index.js';
+import { processIntentWithOpenClaw } from './agent.js';
 
 export type MessagePlatform = 'telegram' | 'whatsapp';
 
@@ -33,7 +34,7 @@ export async function routeMessage(message: IncomingMessage): Promise<void> {
   if (lowerText === '/start' || lowerText === 'hi' || lowerText === 'hello') {
     await reply(
       message,
-      ` *Welcome to FX RemitBot!*\n\nI can help you:\n• 💸 Send money: _"Send $50 to Mama"_\n• 📋 Save contacts: _"Save Mama 0x1234..."_\n• 💰 Check balance: _"What's my balance?"_\n• 📅 Schedule: _"Send $100 to Papa every month"_\n\nWhat would you like to do?`
+      ` *Welcome to FX RemitBot!*\n\nI can help you:\n• Send money: _"Send $50 to Mama"_\n• Save contacts: _"Save Mama 0x1234..."_\n• Check balance: _"What's my balance?"_\n• Schedule: _"Send $100 to Papa every month"_\n\nWhat would you like to do?`
     );
     return;
   }
@@ -47,13 +48,13 @@ export async function routeMessage(message: IncomingMessage): Promise<void> {
   }
 
   if (lowerText === '/balance') {
-    await reply(message, ` Fetching your balance...\n\n_(Blockchain integration coming soon!)_`);
+    await reply(message, `Fetching your balance...\n\n_(Blockchain integration coming soon!)_`);
     return;
   }
 
-  // Default response for unrecognised messages
-  await reply(
-    message,
-    `I didn't quite get that. Try saying something like:\n• _"Send $50 to Mama"_\n• _"Check my balance"_\n\nOr type /help for a full list of commands.`
-  );
+  // 3. For all other natural language messages, let OpenClaw parse the intent!
+  if (message.platform === 'telegram' && message.chatId) {
+    // We don't await reply here, we let agent.ts handle the async response streaming
+    await processIntentWithOpenClaw(senderId, text, message.chatId);
+  }
 }

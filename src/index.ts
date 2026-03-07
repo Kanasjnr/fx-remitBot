@@ -43,7 +43,6 @@ app.post('/webhooks/telegram', async (req, res) => {
 app.listen(PORT, async () => {
   console.log(` FX RemitBot server running on port ${PORT}`);
 
-  // Register webhook if BACKEND_URL is set
   const backendUrl = process.env.BACKEND_URL;
   if (backendUrl) {
     await setTelegramWebhook(backendUrl);

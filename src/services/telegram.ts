@@ -9,7 +9,6 @@ if (!token) {
   console.warn('TELEGRAM_BOT_TOKEN is missing. Telegram bot will not work.');
 }
 
-// Initialize in webhook mode (not polling) for production
 export const bot = token ? new TelegramBot(token) : null;
 
 export async function sendTelegramMessage(
