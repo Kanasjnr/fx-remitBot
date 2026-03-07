@@ -4,8 +4,8 @@ import { sendTelegramMessage } from './telegram.js';
 dotenv.config();
 
 // The token from ~/.openclaw/openclaw.json onboarding
-const OPENCLAW_GATEWAY_TOKEN = '3de73d051bc8b4d3b17e4b98027cefb036bbed0c87d80b31';
-const OPENCLAW_GATEWAY_URL = 'http://127.0.0.1:18789';
+const OPENCLAW_GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN || '';
+const OPENCLAW_GATEWAY_URL = process.env.OPENCLAW_GATEWAY_URL || 'http://127.0.0.1:18789';
 
 export async function processIntentWithOpenClaw(userId: string, text: string, chatId?: string) {
   try {
