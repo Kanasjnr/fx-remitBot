@@ -16,7 +16,6 @@ async function reply(message: IncomingMessage, text: string): Promise<void> {
   if (message.platform === 'telegram' && message.chatId) {
     await sendTelegramMessage(message.chatId, text);
   }
-  // WhatsApp reply will be added here later
 }
 
 export async function routeMessage(message: IncomingMessage): Promise<void> {
