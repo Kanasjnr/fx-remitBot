@@ -70,3 +70,16 @@ export async function createBeneficiary(beneficiary: Database['public']['Tables'
   if (error) throw error;
   return data;
 }
+
+// --- Transaction Helpers ---
+
+export async function logTransaction(transaction: Database['public']['Tables']['transactions']['Insert']) {
+  const { data, error } = await supabase
+    .from('transactions')
+    .insert(transaction)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
