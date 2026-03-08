@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import { sendTelegramMessage } from './telegram.js';
+import { getUserByTelegramId } from '../db/index.js';
 
 dotenv.config();
 
@@ -12,6 +13,8 @@ export async function processIntentWithOpenClaw(userId: string, text: string, ch
     console.log(`[OpenClaw] Sending message from user ${userId} to Agent...`);
 
     const sessionId = `telegram_${userId}`;
+    const user = await getUserByTelegramId(parseInt(userId));
+    const walletAddress = user?.wallet_address || 'NOT_SET';
 
     // Communicate directly with the OpenClaw Gateway REST API
     let toolResultMessages: any[] = [];
@@ -21,9 +24,12 @@ export async function processIntentWithOpenClaw(userId: string, text: string, ch
     let messageHistory: any[] = []; // track history for tool calls loop
     
     const instructions = `You are RemitBot, an AI remittance agent operating on the Celo blockchain.
-Your primary job is to help the user manage their remittance contacts (beneficiaries).
+Your primary job is to help the user manage their remittance contacts (beneficiaries) and their Celo assets.
 
-CRITICAL: You MUST use the following 'curl' commands to manage beneficiaries. The user's Telegram ID is ${userId}.
+The user's Telegram ID is ${userId}.
+The user's registered wallet address is: ${walletAddress}.
+
+CRITICAL: You MUST use the following 'curl' commands for operations.
 
 1. To SAVE/ADD a beneficiary:
 curl -s -X POST http://127.0.0.1:3000/api/internal/beneficiary -H "Content-Type: application/json" -d '{"action": "add", "name": "NAME_HERE", "address": "ADDRESS_HERE", "telegramId": "${userId}"}'
@@ -31,7 +37,26 @@ curl -s -X POST http://127.0.0.1:3000/api/internal/beneficiary -H "Content-Type:
 2. To LIST beneficiaries:
 curl -s -X POST http://127.0.0.1:3000/api/internal/beneficiary -H "Content-Type: application/json" -d '{"action": "list", "telegramId": "${userId}"}'
 
-Execute these commands using your shell execution tool when the user requests beneficiary operations.`;
+3. To CHECK BALANCES:
+curl -s -X POST http://127.0.0.1:3000/api/internal/blockchain -H "Content-Type: application/json" -d '{"action": "balance", "address": "${walletAddress === 'NOT_SET' ? '0xUSER_ADDRESS_HERE' : walletAddress}"}'
+
+Note: If the wallet address is NOT_SET, ask the user to provide their Celo wallet address.
+4. To CHECK EXCHANGE RATES (Mento):
+curl -s -X POST http://127.0.0.1:3000/api/internal/mento -H "Content-Type: application/json" -d '{"action": "rate", "tokenIn": "CELO", "tokenOut": "cUSD", "amountIn": "10"}'
+
+Note: Supported tokens include CELO, cUSD, cEUR, cREAL, USDC, USDT.
+
+5. To SEND CRYPTO (Transfer):
+curl -s -X POST http://127.0.0.1:3000/api/internal/transfer -H "Content-Type: application/json" -d '{"to": "0xRECIPIENT", "amount": "1.5", "tokenSymbol": "cUSD", "telegramId": "${userId}"}'
+
+### TRANSACTION PROTOCOL (AUTONOMOUS AGENT):
+1. You are a fully autonomous AI financial agent.
+2. The user has deposited funds into an agent-controlled wallet linked to their account.
+3. When the user says "Send $50 to Mama", you MUST immediately find Mama's address in the beneficiaries list.
+4. If the address is found, you MUST immediately call the SEND CRYPTO (curl #5) command.
+5. You DO NOT ask the user to sign anything or click any links. You simply execute the transfer and reply with the success message and transaction hash.
+
+Execute these commands using your shell execution tool when the user requests beneficiary operations, balance checks, currency conversions, sending money, or swapping tokens.`;
 
     // Add the initial user message to the history
     messageHistory.push({
@@ -41,8 +66,6 @@ Execute these commands using your shell execution tool when the user requests be
     });
 
     while (!isDone) {
-        // Construct the input array based on current conversation history
-        // Track history for tool calls loop in OpenResponses exact format
         const inputData = messageHistory;
 
         const payload = {
@@ -73,7 +96,6 @@ Execute these commands using your shell execution tool when the user requests be
             break;
         }
 
-        // Store the AI's response in history if we are looping
         if (outputItem.type === 'message' && Array.isArray(outputItem.content)) {
              messageHistory.push({ 
                  type: 'message', 
@@ -82,24 +104,20 @@ Execute these commands using your shell execution tool when the user requests be
              });
         }
 
-        // Handle text output from the model
         if (outputItem.type === 'message' && Array.isArray(outputItem.content)) {
              replyText = outputItem.content
                 .filter((part: any) => part.type === 'output_text')
                 .map((part: any) => part.text)
                 .join('\n\n');
              
-             // OpenClaw native skills are executed server-side. 
-             // Once the response comes back, the text output is final.
              isDone = true;
         } else {
-            isDone = true; // Unrecognized output type 
+            isDone = true; 
         }
     }
 
     console.log(`[OpenClaw] Agent responded: ${replyText}`);
 
-    // Forward the agent's response back to Telegram
     if (replyText && chatId) {
       await sendTelegramMessage(chatId, replyText);
     }
@@ -107,8 +125,7 @@ Execute these commands using your shell execution tool when the user requests be
   } catch (error) {
     console.error('[OpenClaw] Error processing intent:', error);
     if (chatId) {
-      // Use code blocks to prevent Telegram Markdown parsing errors with raw JSON/HTML and special characters
-      await sendTelegramMessage(chatId, `Sorry, my AI brain is currently offline.\n\nError: \`\`\`\n${String(error).slice(0, 500)}\n\`\`\``);
+      await sendTelegramMessage(chatId, `Sorry, my AI brain is currently offline.\n\nError: ${String(error).slice(0, 500)}`);
     }
   }
 }

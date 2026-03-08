@@ -20,15 +20,21 @@ export async function sendTelegramMessage(
     console.warn('Telegram bot not initialized.');
     return;
   }
-  await bot.sendMessage(chatId, text, {
-    parse_mode: 'Markdown',
-    ...options,
-  });
+  try {
+    await bot.sendMessage(chatId, text, {
+      parse_mode: 'Markdown',
+      ...options,
+    });
+  } catch (err) {
+    console.warn('Telegram Markdown parse failed, retrying without parse_mode');
+    const { parse_mode, ...safeOptions } = options || {};
+    await bot.sendMessage(chatId, text, safeOptions);
+  }
 }
 
 export async function setTelegramWebhook(webhookUrl: string): Promise<void> {
   if (!bot) return;
-  await bot.setWebHook(`${webhookUrl}/webhooks/telegram`);
+  await bot.setWebHook(`${webhookUrl}/webhooks/telegram/`);
   console.log(`Telegram webhook set to: ${webhookUrl}/webhooks/telegram`);
 }
 
