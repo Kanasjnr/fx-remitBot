@@ -123,6 +123,35 @@ export async function getBeneficiaries(userId: string) {
   );
 }
 
+export async function findBeneficiary(userId: string, identifier: string) {
+  return withRetry(
+    async () => {
+      // Try lookup by address first
+      const { data: byAddr, error: err1 } = await supabase
+        .from("beneficiaries")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("address", identifier)
+        .maybeSingle();
+
+      if (byAddr) return sanitize(byAddr);
+
+      // Try lookup by name
+      const { data: byName } = await supabase
+        .from("beneficiaries")
+        .select("*")
+        .eq("user_id", userId)
+        .ilike("name", identifier)
+        .maybeSingle();
+
+      return sanitize(byName);
+    },
+    2,
+    1000,
+    "findBeneficiary",
+  );
+}
+
 export async function createBeneficiary(
   beneficiary: Database["public"]["Tables"]["beneficiaries"]["Insert"],
 ) {

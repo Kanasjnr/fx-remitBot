@@ -81,17 +81,32 @@ export async function processIntentWithOpenClaw(
         user: sessionId,
       };
 
-      const response = await fetch(`${OPENCLAW_GATEWAY_URL}/v1/responses`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${OPENCLAW_GATEWAY_TOKEN}`,
-        },
-        body: JSON.stringify(payload),
-      });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 20000); // 20s timeout
 
-      if (!response.ok) throw new Error(`OpenClaw error: ${response.status}`);
-      const data = await response.json();
+      let data: any;
+      try {
+        const response = await fetch(`${OPENCLAW_GATEWAY_URL}/v1/responses`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${OPENCLAW_GATEWAY_TOKEN}`,
+          },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) throw new Error(`OpenClaw error: ${response.status}`);
+        data = await response.json();
+      } catch (err: any) {
+        clearTimeout(timeoutId);
+        if (err.name === "AbortError") {
+          throw new Error("AI Request Timed Out. Please try again.");
+        }
+        throw err;
+      }
 
       const outputs = data?.output || [];
       if (outputs.length === 0) {
@@ -100,101 +115,71 @@ export async function processIntentWithOpenClaw(
       }
 
       let hasToolCall = false;
-
       for (const outputItem of outputs) {
-        if (
-          outputItem.type === "message" &&
-          Array.isArray(outputItem.content)
-        ) {
+        if (outputItem.type === "message" && Array.isArray(outputItem.content)) {
           const textContent = outputItem.content
             .filter((p: any) => p.type === "output_text")
             .map((p: any) => p.text)
             .join("\n\n");
           if (textContent) replyText += (replyText ? "\n\n" : "") + textContent;
 
-          // Add to history for context
           messageHistory.push({
             type: "message",
             role: "assistant",
             content: outputItem.content.map((c: any) =>
-              c.type === "output_text"
-                ? { type: "input_text", text: c.text }
-                : c,
+              c.type === "output_text" ? { type: "input_text", text: c.text } : c
             ),
           });
         }
-
         if (outputItem.type === "call") {
           hasToolCall = true;
-          // Gateway usually handles the call, but we might get results back in a multi-step turn
-          // For now, let's assume we need to break if the agent is done or continue if it's a tool-only turn
         }
       }
 
-      // If no tool call was made, we are done
       if (!hasToolCall) {
         isDone = true;
       } else {
-        // If there was a tool call, the gateway might have provided results in the same 'metadata' or 'output'
-        // OpenClaw usually handles the tool result injection.
-        // We'll set isDone = true for now to prevent infinite loops if instructions are bad,
-        // but normally we'd loop again if there were tool results.
-        isDone = true;
+        isDone = true; // For now, assume single turn if tools are involved
       }
     }
 
     console.log(`[OpenClaw] Final Agent Reply: ${replyText}`);
 
     if (replyText && chatId) {
-      const txMatch = replyText.match(
-        /\[DRAFT_TX:\s*to=([^,]+),\s*amount=([^,]+),\s*token=([^\]]+)\]/,
-      );
-      const schMatch = replyText.match(
-        /\[DRAFT_SCHEDULE:\s*to=([^,]+),\s*amount=([^,]+),\s*token=([^,]+),\s*frequencySeconds=([^,]+),\s*totalTransfers=([^\]]+)\]/,
-      );
+      const txMatch = replyText.match(/\[DRAFT_TX:\s*to=([^,]+),\s*amount=([^,]+),\s*token=([^\]]+)\]/);
+      const schMatch = replyText.match(/\[DRAFT_SCHEDULE:\s*to=([^,]+),\s*amount=([^,]+),\s*token=([^,]+),\s*frequencySeconds=([^,]+),\s*totalTransfers=([^\]]+)\]/);
 
       if (txMatch) {
         const [, to, amount, token] = txMatch;
         const cleanText = replyText.replace(/\[DRAFT_TX:.*?\]/, "").trim();
         await sendTelegramMessage(chatId, cleanText, {
           reply_markup: {
-            inline_keyboard: [
-              [
-                {
-                  text: "✅ Confirm Transfer",
-                  callback_data: `tx_c:${to}:${amount}:${token}`,
-                },
-                { text: "❌ Cancel", callback_data: `tx_can` },
-              ],
-            ],
-          },
+            inline_keyboard: [[
+              { text: "✅ Confirm Transfer", callback_data: `tx_c:${to}:${amount}:${token}` },
+              { text: "❌ Cancel", callback_data: `tx_can` }
+            ]]
+          }
         });
       } else if (schMatch) {
         const [, to, amount, token, freq, total] = schMatch;
-        const cleanText = replyText
-          .replace(/\[DRAFT_SCHEDULE:.*?\]/, "")
-          .trim();
+        const cleanText = replyText.replace(/\[DRAFT_SCHEDULE:.*?\]/, "").trim();
         await sendTelegramMessage(chatId, cleanText, {
           reply_markup: {
-            inline_keyboard: [
-              [
-                {
-                  text: "📅 Confirm Schedule",
-                  callback_data: `sch_c:${to}:${amount}:${token}:${freq}:${total}`,
-                },
-                { text: "❌ Cancel", callback_data: `tx_can` },
-              ],
-            ],
-          },
+            inline_keyboard: [[
+              { text: "📅 Confirm Schedule", callback_data: `sch_c:${to}:${amount}:${token}:${freq}:${total}` },
+              { text: "❌ Cancel", callback_data: `tx_can` }
+            ]]
+          }
         });
       } else {
         await sendTelegramMessage(chatId, replyText);
       }
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error("[OpenClaw] Agent Error:", error);
-    if (chatId)
-      await sendTelegramMessage(chatId, `AI Brain Error. Please try /reset.`);
+    if (chatId) {
+      await sendTelegramMessage(chatId, `AI Error: ${error.message || "Brain fog."} Try /reset.`);
+    }
   } finally {
     processingUsers.delete(userId);
   }

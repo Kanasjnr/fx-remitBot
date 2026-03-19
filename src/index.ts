@@ -19,6 +19,7 @@ import {
   getUserByTelegramId,
   upsertUser,
   logTransaction,
+  findBeneficiary,
   createRecurringTransfer,
   getRecurringTransfers,
   updateRecurringTransfer,
@@ -31,7 +32,7 @@ import {
 } from "./services/transactions.js";
 import { startCron } from "./services/cron.js";
 
-import { jsonSafeReplacer } from "./services/utils.js";
+import { jsonSafeReplacer, humanizeError } from "./services/utils.js";
 
 const app = express();
 app.use(express.json());
@@ -335,7 +336,7 @@ app.post(["/webhooks/telegram", "/webhooks/telegram/"], async (req, res) => {
           senderId: from.id.toString(),
           text: "/help",
           chatId: from.id.toString(),
-          raw: body,
+          raw: update.callback_query,
         });
         return;
       }
@@ -347,7 +348,7 @@ app.post(["/webhooks/telegram", "/webhooks/telegram/"], async (req, res) => {
           senderId: from.id.toString(),
           text: "/reset",
           chatId: from.id.toString(),
-          raw: body,
+          raw: update.callback_query,
         });
         return;
       }
@@ -369,10 +370,11 @@ app.post(["/webhooks/telegram", "/webhooks/telegram/"], async (req, res) => {
       }
 
       if (data?.startsWith("tx_c:")) {
-        const [, to, amount, token] = data.split(":");
+        const [, to, amount, token] = data.split(":") as [string, string, string, string];
         const internalUserId = await getInternalUserId(from.id);
 
         if (internalUserId && message) {
+          const recipientAddr = to as `0x${string}`;
           // Tell the user we're executing
           await bot?.answerCallbackQuery(id, { text: "Executing transfer..." });
           await bot?.editMessageText(`${message.text}\n\n⏳ *Executing...*`, {
@@ -383,10 +385,10 @@ app.post(["/webhooks/telegram", "/webhooks/telegram/"], async (req, res) => {
 
           try {
             const result = await sendStablecoinTransfer(
-              internalUserId,
-              to,
-              amount,
-              token,
+              internalUserId as string,
+              recipientAddr,
+              amount as string,
+              token as any,
             );
             await bot?.editMessageText(
               `${message.text}\n\n✅ *Transfer Successful!*\n👤 *Recipient:* \`${to}\`\n💰 *Amount:* ${amount} ${token}\n⛽ *Fee:* Paid in cUSD\n🔗 [View on Explorer](https://celoscan.io/tx/${result.hash})`,
@@ -398,7 +400,7 @@ app.post(["/webhooks/telegram", "/webhooks/telegram/"], async (req, res) => {
             );
           } catch (txErr: any) {
             await bot?.editMessageText(
-              `${message.text}\n\n❌ *Transfer Failed*\nError: ${txErr.message}`,
+              `${message.text}\n\n${humanizeError(txErr)}`,
               {
                 chat_id: message.chat.id,
                 message_id: message.message_id,
@@ -426,7 +428,7 @@ app.post(["/webhooks/telegram", "/webhooks/telegram/"], async (req, res) => {
       }
 
       if (data?.startsWith("sch_c:")) {
-        const [, to, amount, token, freq, total] = data.split(":");
+        const [, to, amount, token, freq, total] = data.split(":") as [string, string, string, string, string, string];
         const internalUserId = await getInternalUserId(from.id);
 
         if (internalUserId && message) {
@@ -441,35 +443,39 @@ app.post(["/webhooks/telegram", "/webhooks/telegram/"], async (req, res) => {
           );
 
           try {
-            // We need a beneficiary ID for the schedule.
-            // In a real app, we'd lookup by address. For now, let's assume 'to' might be a name or address.
-            // If it's an address, we can use it directly in our modified store logic or create a temp beneficiary.
+            // RESOLVE BENEFICIARY ID (CRITICAL FOR DB UUID)
+            const target = await findBeneficiary(internalUserId as string, to);
+
+            if (!target) {
+              throw new Error(
+                `Beneficiary '${to}' not found. Please save them as a contact first.`,
+              );
+            }
+
             const payload = {
               user_id: internalUserId,
-              beneficiary_id: to, // Pass the 'to' address directly for now as our schema might allow it or we'll map it
+              beneficiary_id: target.id, // Now a valid UUID
               amount: Number(amount),
               currency: token,
               frequency_seconds: Number(freq),
               total_transfers: Number(total),
               remaining_transfers: Number(total),
-              next_execution_time: new Date(
-                Date.now() + Number(freq) * 1000,
-              ).toISOString(),
+              next_execution_time: new Date().toISOString(),
               status: "ACTIVE",
             };
 
             await createRecurringTransfer(payload as any);
             await bot?.editMessageText(
-              `${message.text}\n\n📅 *Schedule Active!*\n👤 *Recipient:* \`${to}\`\n💰 *Amount:* ${amount} ${token}\n⏱️ *Frequency:* Every ${freq}s\n🔢 *Total Transfers:* ${total}`,
+              `${message.text}\n\n📅 *Schedule Active!*\n👤 *Recipient:* \`${target.name}\` (${target.address})\n💰 *Amount:* ${amount} ${token}\n⏱️ *Frequency:* Every ${freq}s\n🔢 *Total Transfers:* ${total}`,
               {
                 chat_id: message.chat.id,
                 message_id: message.message_id,
                 parse_mode: "Markdown",
               },
             );
-          } catch (err: any) {
+          } catch (txErr: any) {
             await bot?.editMessageText(
-              `${message.text}\n\n❌ *Schedule Failed*\nError: ${err.message}`,
+              `${message.text}\n\n${humanizeError(txErr)}`,
               {
                 chat_id: message.chat.id,
                 message_id: message.message_id,
