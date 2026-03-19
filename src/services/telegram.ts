@@ -1,12 +1,12 @@
-import TelegramBot from 'node-telegram-bot-api';
-import dotenv from 'dotenv';
+import TelegramBot from "node-telegram-bot-api";
+import dotenv from "dotenv";
 
 dotenv.config();
 
-const token = process.env.TELEGRAM_BOT_TOKEN || '';
+const token = process.env.TELEGRAM_BOT_TOKEN || "";
 
 if (!token) {
-  console.warn('TELEGRAM_BOT_TOKEN is missing. Telegram bot will not work.');
+  console.warn("TELEGRAM_BOT_TOKEN is missing. Telegram bot will not work.");
 }
 
 export const bot = token ? new TelegramBot(token) : null;
@@ -14,19 +14,20 @@ export const bot = token ? new TelegramBot(token) : null;
 export async function sendTelegramMessage(
   chatId: number | string,
   text: string,
-  options?: TelegramBot.SendMessageOptions
+  options?: TelegramBot.SendMessageOptions,
 ): Promise<void> {
   if (!bot) {
-    console.warn('Telegram bot not initialized.');
+    console.warn("Telegram bot not initialized.");
     return;
   }
   try {
     await bot.sendMessage(chatId, text, {
-      parse_mode: 'Markdown',
+      parse_mode: "Markdown",
+      disable_web_page_preview: true,
       ...options,
     });
   } catch (err) {
-    console.warn('Telegram Markdown parse failed, retrying without parse_mode');
+    console.warn("Telegram Markdown parse failed, retrying without parse_mode");
     const { parse_mode, ...safeOptions } = options || {};
     await bot.sendMessage(chatId, text, safeOptions);
   }
@@ -38,6 +39,18 @@ export async function setTelegramWebhook(webhookUrl: string): Promise<void> {
   console.log(`Telegram webhook set to: ${webhookUrl}/webhooks/telegram`);
 }
 
+export async function registerBotCommands(): Promise<void> {
+  if (!bot) return;
+  await bot.setMyCommands([
+    { command: "start", description: "Open the main dashboard" },
+    { command: "balance", description: "Check your wallet balances" },
+    { command: "contacts", description: "Manage your beneficiaries" },
+    { command: "reset", description: "Reset the AI conversation context" },
+    { command: "help", description: "Get help and usage tips" },
+  ]);
+  console.log("Telegram bot commands registered.");
+}
+
 export function parseTelegramUpdate(body: TelegramBot.Update): {
   chatId: number | null;
   text: string | null;
@@ -45,7 +58,8 @@ export function parseTelegramUpdate(body: TelegramBot.Update): {
   username: string | null;
 } {
   const message = body.message;
-  if (!message) return { chatId: null, text: null, userId: null, username: null };
+  if (!message)
+    return { chatId: null, text: null, userId: null, username: null };
 
   return {
     chatId: message.chat.id,

@@ -16,6 +16,7 @@ CREATE TABLE beneficiaries (
     name TEXT NOT NULL,
     address TEXT NOT NULL,
     country TEXT,
+    preferred_currency TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(user_id, name)
 );
