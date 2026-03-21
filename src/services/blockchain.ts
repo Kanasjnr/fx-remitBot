@@ -26,6 +26,7 @@ const MENTO_BROKER = "0xad766ae797669ba8a2a86a63520199e19865f808";
 export const TOKENS = {
   CELO: { address: "0x471EcE3750Da237f93B8E339c536989b8978a438", decimals: 18 },
   cUSD: { address: "0x765de816845861e75a25fca122bb6898b8b1282a", decimals: 18 },
+  USDm: { address: "0x765de816845861e75a25fca122bb6898b8b1282a", decimals: 18 },
   cEUR: { address: "0xd8763cba276a3738e6de85b4b3bf5fded6d6ca73", decimals: 18 },
   cREAL: {
     address: "0xe8537a3d056da446677b9e9d6c5db704eaab4787",
