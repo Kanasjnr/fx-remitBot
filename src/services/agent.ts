@@ -9,6 +9,8 @@ const OPENCLAW_GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN || "";
 const OPENCLAW_GATEWAY_URL =
   process.env.OPENCLAW_GATEWAY_URL || "http://127.0.0.1:18789";
 
+console.log(`[OpenClaw] Using Gateway URL: ${OPENCLAW_GATEWAY_URL}`);
+
 // CONCURRENCY LOCK: Prevent duplicate processing if two requests hit at once
 const processingUsers = new Set<string>();
 
