@@ -11,6 +11,7 @@ import { privateKeyToAccount } from "viem/accounts";
 import { celo } from "viem/chains";
 import { TOKENS } from "./blockchain.js";
 import { logTransaction, getUserByTelegramId } from "../db/index.js";
+import { Mento, ChainId, deadlineFromMinutes } from '@mento-protocol/mento-sdk';
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -124,9 +125,11 @@ export async function sendStablecoinTransfer(
         console.log(
           `[Transaction] Non-custodial transferFrom: ${senderAddress} -> ${to}`,
         );
+        // Using common ERC20 ABI for transferFrom
+        const abi = parseAbi(["function transferFrom(address, address, uint256) returns (bool)"]);
         hash = await walletClient.writeContract({
           address: token.address as `0x${string}`,
-          abi: BROKER_ABI, // Contains transferFrom
+          abi,
           functionName: "transferFrom",
           args: [senderAddress, to, amountBN],
           feeCurrency: feeCurrency as `0x${string}`,
@@ -156,7 +159,6 @@ export async function sendStablecoinTransfer(
       });
     } catch (logError) {
       console.error("[Transaction] Database logging failed:", logError);
-      // Don't throw here as the on-chain tx succeeded
     }
 
     return {
@@ -173,63 +175,12 @@ export async function sendStablecoinTransfer(
   }
 }
 
-const MENTO_BROKER =
-  "0xad766ae797669ba8a2a86a63520199e19865f808" as `0x${string}`;
-const EXCHANGE_PROVIDER =
-  "0x22d9db95e6ae61c104a7b6f6c78d7993b94ec901" as `0x${string}`; // BiPoolManager
-
-const BROKER_ABI = [
-  {
-    inputs: [
-      { internalType: "address", name: "exchangeProvider", type: "address" },
-      { internalType: "bytes32", name: "exchangeId", type: "bytes32" },
-      { internalType: "address", name: "tokenIn", type: "address" },
-      { internalType: "address", name: "tokenOut", type: "address" },
-      { internalType: "uint256", name: "amountIn", type: "uint256" },
-      { internalType: "uint256", name: "minAmountOut", type: "uint256" },
-    ],
-    name: "swapIn",
-    outputs: [{ internalType: "uint256", name: "amountOut", type: "uint256" }],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [
-      { internalType: "address", name: "sender", type: "address" },
-      { internalType: "address", name: "recipient", type: "address" },
-      { internalType: "uint256", name: "amount", type: "uint256" },
-    ],
-    name: "transferFrom",
-    outputs: [{ internalType: "bool", name: "", type: "bool" }],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-] as const;
-
-const APPROVE_ABI = [
-  {
-    inputs: [
-      { internalType: "address", name: "spender", type: "address" },
-      { internalType: "uint256", name: "amount", type: "uint256" },
-    ],
-    name: "approve",
-    outputs: [{ internalType: "bool", name: "", type: "bool" }],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-] as const;
-
-/**
- * Helper to get Pool ID (Exchange ID) for Mento.
- * For CELO/stable pairs, it's often the hex of "CELO/stable" padded.
- */
-function getMentoPoolId(tokenA: string, tokenB: string): `0x${string}` {
-  const pair = `${tokenA}/${tokenB}`;
-  let hex = "";
-  for (let i = 0; i < pair.length; i++) {
-    hex += pair.charCodeAt(i).toString(16);
+let mentoInstance: Mento | null = null;
+async function getMento() {
+  if (!mentoInstance) {
+    mentoInstance = await Mento.create(ChainId.CELO);
   }
-  return `0x${hex.padEnd(64, "0")}` as `0x${string}`;
+  return mentoInstance;
 }
 
 export async function sendMentoSwap(
@@ -245,54 +196,46 @@ export async function sendMentoSwap(
     const addrIn = tIn.address as `0x${string}`;
     const addrOut = tOut.address as `0x${string}`;
     const amountInBN = parseUnits(amountIn, tIn.decimals);
-    const feeCurrency = FEE_CURRENCIES[feeSymbol];
-
-    // Use CELO as the base if not swapping CELO directly (contrived for MVP)
-    const exchangeId = getMentoPoolId(
-      "CELO",
-      tokenInSymbol === "CELO" ? tokenOutSymbol : tokenInSymbol,
-    );
+    
+    const mento = await getMento();
 
     console.log(
-      `[Swap] Swapping ${amountIn} ${tokenInSymbol} for ${tokenOutSymbol} via Mento`,
+      `[Swap SDK] Swapping ${amountIn} ${tokenInSymbol} for ${tokenOutSymbol} via Mento SDK`,
     );
 
-    // 1. Approve Broker
-    const approveHash = await walletClient.writeContract({
-      address: addrIn,
-      abi: APPROVE_ABI,
-      functionName: "approve",
-      args: [MENTO_BROKER, amountInBN],
-      feeCurrency: feeCurrency as `0x${string}`,
-    } as any);
-    console.log(`[Swap] Approval Transaction sent: ${approveHash}`);
-    await publicClient.waitForTransactionReceipt({ hash: approveHash });
-    console.log(`[Swap] Approval confirmed.`);
+    // 1. Build Transaction
+    const { approval, swap } = await mento.swap.buildSwapTransaction(
+      addrIn,
+      addrOut,
+      amountInBN,
+      account.address, // Recipient
+      account.address, // Owner
+      {
+        slippageTolerance: 0.5, // 0.5%
+        deadline: deadlineFromMinutes(5),
+      }
+    );
 
-    // 2. Execute Swap (with 1% slippage buffer)
-    const minAmountOut = 0n; // Simple for MVP, should be based on rate
+    // 2. Execute Approval if needed
+    if (approval) {
+      console.log(`[Swap SDK] Approval required. Sending approval transaction...`);
+      const approveHash = await walletClient.sendTransaction(approval as any);
+      console.log(`[Swap SDK] Approval sent: ${approveHash}. Waiting for confirmation...`);
+      await publicClient.waitForTransactionReceipt({ hash: approveHash });
+      console.log(`[Swap SDK] Approval confirmed.`);
+    }
 
-    const swapHash = await walletClient.writeContract({
-      address: MENTO_BROKER,
-      abi: BROKER_ABI,
-      functionName: "swapIn",
-      args: [
-        EXCHANGE_PROVIDER,
-        exchangeId,
-        addrIn,
-        addrOut,
-        amountInBN,
-        minAmountOut,
-      ],
-      feeCurrency: feeCurrency as `0x${string}`,
-    } as any);
+    // 3. Execute Swap
+    console.log(`[Swap SDK] Sending swap transaction...`);
+    const swapHash = await walletClient.sendTransaction(swap.params as any);
+    console.log(`[Swap SDK] Swap sent: ${swapHash}`);
 
     // Log to database
     try {
       await logTransaction({
         user_id: userId,
         from_address: account.address,
-        to_address: MENTO_BROKER, // Or some representation of the swap
+        to_address: addrIn, // Using tokenIn address as a placeholder
         amount: parseFloat(amountIn),
         currency: tokenInSymbol,
         tx_hash: swapHash,
@@ -312,7 +255,7 @@ export async function sendMentoSwap(
       amountIn,
     };
   } catch (error: any) {
-    console.error("[Swap] Mento swap error:", error);
+    console.error("[Swap SDK] Mento swap error:", error.message);
     throw new Error(`Failed to execute Mento swap: ${error.message}`);
   }
 }
