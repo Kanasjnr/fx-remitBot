@@ -172,6 +172,30 @@ export async function createBeneficiary(
   );
 }
 
+export async function deleteBeneficiary(userId: string, identifier: string) {
+  return withRetry(
+    async () => {
+      // Find the beneficiary first to get the correct ID
+      const target = await findBeneficiary(userId, identifier);
+      if (!target) {
+        return { success: false, error: `Beneficiary '${identifier}' not found.` };
+      }
+
+      const { error } = await supabase
+        .from("beneficiaries")
+        .delete()
+        .eq("id", target.id)
+        .eq("user_id", userId);
+
+      if (error) throw error;
+      return { success: true, message: `Beneficiary '${target.name}' deleted successfully.` };
+    },
+    2,
+    1000,
+    "deleteBeneficiary",
+  );
+}
+
 // --- Transaction Helpers ---
 
 export async function logTransaction(

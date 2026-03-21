@@ -46,6 +46,25 @@ export const beneficiaryTools = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "delete_beneficiary",
+      description:
+        "Remove/delete a saved contact or beneficiary from your list.",
+      parameters: {
+        type: "object",
+        properties: {
+          identifier: {
+            type: "string",
+            description:
+              "The name, nickname, or Celo address of the beneficiary to delete.",
+          },
+        },
+        required: ["identifier"],
+      },
+    },
+  },
 ];
 
 export async function executeBeneficiaryTool(
@@ -121,6 +140,18 @@ export async function executeBeneficiaryTool(
         }
 
         return JSON.stringify({ beneficiaries: data });
+      }
+ 
+      case "delete_beneficiary": {
+        const { identifier } = args;
+        if (!identifier) {
+          return JSON.stringify({ error: "Missing identifier for deletion." });
+        }
+ 
+        const { deleteBeneficiary } = await import("../../db/index.js");
+        const result = await deleteBeneficiary(user.id, identifier);
+ 
+        return JSON.stringify(result);
       }
 
       default:

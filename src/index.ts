@@ -91,6 +91,9 @@ app.post("/api/internal/beneficiary", async (req, res) => {
       args = { name, address, country, preferred_currency, preferredCurrency };
     } else if (action === "list") {
       toolName = "list_beneficiaries";
+    } else if (action === "delete") {
+      toolName = "delete_beneficiary";
+      args = { identifier: name || address }; // Use name or address as identifier
     } else {
       return res.status(400).json({ error: "Invalid action" });
     }
