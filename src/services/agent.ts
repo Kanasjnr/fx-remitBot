@@ -56,6 +56,7 @@ export async function processIntentWithOpenClaw(
     3. To propose a recurring schedule, you MUST append this EXACT tag: [DRAFT_SCHEDULE: to=0x..., amount=10, token=TOKEN, frequencySeconds=86400, totalTransfers=12]
     4. To propose a token swap, you MUST append this EXACT tag: [DRAFT_SWAP: from=SYMBOL, to=SYMBOL, amount=1.5]
     5. **Smart Lookup**: If a user mentions a name (e.g., "Mama", "Valora"), you MUST call Tool #2 (LIST BENEFICIARIES) first to find their address.
+    3. DELETE BENEFICIARY: curl -s -X POST ${serverUrl}/api/internal/beneficiary -H "Content-Type: application/json" -d '{"action": "delete", "name": "NAME", "telegramId": "${userId}"}'
     6. Always explain the draft to the user and tell them to "Click the Confirm button below."
     
     Backend: ${serverUrl}
@@ -63,6 +64,7 @@ export async function processIntentWithOpenClaw(
     ### TOOLS:
     1. SAVE BENEFICIARY: curl -s -X POST ${serverUrl}/api/internal/beneficiary -H "Content-Type: application/json" -d '{"action": "add", "name": "NAME", "address": "0x...", "country": "COUNTRY", "preferredCurrency": "TOKEN", "telegramId": "\${userId}"}'
     2. LIST BENEFICIARIES: curl -s -X POST ${serverUrl}/api/internal/beneficiary -H "Content-Type: application/json" -d '{"action": "list", "telegramId": "${userId}"}'
+    3. DELETE BENEFICIARY: curl -s -X POST ${serverUrl}/api/internal/beneficiary -H "Content-Type: application/json" -d '{"action": "delete", "name": "NAME", "telegramId": "${userId}"}'
     3. CHECK BALANCES: curl -s -X POST ${serverUrl}/api/internal/blockchain -H "Content-Type: application/json" -d '{"action": "balance", "address": "${walletAddress}"}'
     4. CHECK EXCHANGE RATES: curl -s -X POST ${serverUrl}/api/internal/mento -H "Content-Type: application/json" -d '{"action": "rate", "tokenIn": "SYMBOL", "tokenOut": "SYMBOL", "amountIn": "1"}'
 
