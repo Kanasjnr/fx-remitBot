@@ -95,6 +95,7 @@ export async function processIntentWithOpenClaw(
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${OPENCLAW_GATEWAY_TOKEN}`,
+            "ngrok-skip-browser-warning": "true",
           },
           body: JSON.stringify(payload),
           signal: controller.signal,
