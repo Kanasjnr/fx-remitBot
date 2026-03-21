@@ -1,6 +1,6 @@
 # FX RemitBot: High-Trust AI Remittances
 
-FX RemitBot is a professional-grade AI financial assistant for Telegram and WhatsApp, built on the Celo blockchain. It empowers users to send money globally using natural language while maintaining the highest levels of safety through the innovative Drafting Protocol.
+FX RemitBot is a professional-grade AI financial assistant for Telegram , built on the Celo blockchain. It empowers users to send money globally using natural language while maintaining the highest levels of safety through the innovative Drafting Protocol.
 
 ## The Drafting Protocol
 
