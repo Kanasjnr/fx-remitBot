@@ -14,7 +14,7 @@ Unlike traditional bots that execute transactions automatically, RemitBot acts a
 
 ```mermaid
 graph TD
-    User[Telegram/WhatsApp User] --> Bot[Express/Node.js Server]
+    User[Telegram User] --> Bot[Express/Node.js Server]
     Bot --> OpenClaw[OpenClaw AI Gateway]
     OpenClaw --> Intent[Intent Parsing & Tool Call]
     Intent --> Bot
