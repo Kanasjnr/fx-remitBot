@@ -165,8 +165,8 @@ export async function processIntentWithOpenClaw(
         await sendTelegramMessage(chatId, cleanText, {
           reply_markup: {
             inline_keyboard: [[
-              { text: "✅ Confirm Transfer", callback_data: `tx_c:${to}:${amount}:${token}` },
-              { text: "❌ Cancel", callback_data: `tx_can` }
+              { text: "Confirm Transfer", callback_data: `tx_c:${to}:${amount}:${token}` },
+              { text: "Cancel", callback_data: `tx_can` }
             ]]
           }
         });
@@ -176,8 +176,8 @@ export async function processIntentWithOpenClaw(
         await sendTelegramMessage(chatId, cleanText, {
           reply_markup: {
             inline_keyboard: [[
-              { text: "📅 Confirm Schedule", callback_data: `sch_c:${to}:${amount}:${token}:${freq}:${total}` },
-              { text: "❌ Cancel", callback_data: `tx_can` }
+              { text: "Confirm Schedule", callback_data: `sch_c:${to}:${amount}:${token}:${freq}:${total}` },
+              { text: "Cancel", callback_data: `tx_can` }
             ]]
           }
         });
@@ -189,8 +189,8 @@ export async function processIntentWithOpenClaw(
           await sendTelegramMessage(chatId, cleanText, {
             reply_markup: {
               inline_keyboard: [[
-                { text: `🔄 Swap ${amount} ${from} ➡️ ${to}`, callback_data: `swap_c:${from}:${to}:${amount}` },
-                { text: "❌ Cancel", callback_data: `tx_can` }
+                { text: `Swap ${amount} ${from} to ${to}`, callback_data: `swap_c:${from}:${to}:${amount}` },
+                { text: "Cancel", callback_data: `tx_can` }
               ]]
             }
           });

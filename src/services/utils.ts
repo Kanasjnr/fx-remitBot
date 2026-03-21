@@ -75,20 +75,20 @@ export function humanizeError(error: any): string {
   const msg = error.message || String(error);
 
   if (msg.includes("insufficient funds")) {
-    return "❌ *Insufficient Balance*\nYou don't have enough CELO or stablecoins to cover the transfer and gas fee. Please top up your wallet.";
+    return "*Insufficient Balance*\nYou don't have enough CELO or stablecoins to cover the transfer and gas fee. Please top up your wallet.";
   }
   if (msg.includes("user rejected") || msg.includes("User rejected")) {
-    return "❌ *Request Cancelled*\nYou rejected the request in your wallet.";
+    return "*Request Cancelled*\nYou rejected the request in your wallet.";
   }
   if (msg.includes("exceeds allowance")) {
-    return "❌ *Allowance Error*\nThe amount exceeds the approved allowance. Try a smaller amount.";
+    return "*Allowance Error*\nThe amount exceeds the approved allowance. Try a smaller amount.";
   }
   if (msg.includes("ETIMEDOUT") || msg.includes("fetch failed")) {
-    return "🌐 *Network Error*\nI'm having trouble reaching the Celo network. Please try again in a moment.";
+    return "*Network Error*\nI'm having trouble reaching the Celo network. Please try again in a moment.";
   }
   if (msg.includes("beneficiary_id")) {
-    return "👤 *Contact Error*\nI couldn't find that contact. Please save them first using 'Save [Name] [Address]'";
+    return "*Contact Error*\nI couldn't find that contact. Please save them first using 'Save [Name] [Address]'";
   }
 
-  return `❌ *Error*: ${msg}`;
+  return `*Error*: ${msg}`;
 }

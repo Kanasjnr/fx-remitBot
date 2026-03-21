@@ -394,7 +394,7 @@ app.post(["/webhooks/telegram", "/webhooks/telegram/"], async (req, res) => {
               token as any,
             );
             await bot?.editMessageText(
-              `${message.text}\n\n✅ *Transfer Successful!*\n👤 *Recipient:* \`${to}\`\n💰 *Amount:* ${amount} ${token}\n⛽ *Fee:* Paid in cUSD\n🔗 [View on Explorer](https://celoscan.io/tx/${result.hash})`,
+              `${message.text}\n\n✅ *Transfer Successful!*\n*Recipient:* \`${to}\`\n*Amount:* ${amount} ${token}\n*Fee:* Paid in cUSD\n🔗 [View on Explorer](https://celoscan.io/tx/${result.hash})`,
               {
                 chat_id: message.chat.id,
                 message_id: message.message_id,
@@ -454,7 +454,7 @@ app.post(["/webhooks/telegram", "/webhooks/telegram/"], async (req, res) => {
             );
 
             await bot?.editMessageText(
-              `${message.text}\n\n✅ *Swap Successful!*\n🪙 *Exchanged:* ${amount} ${tokenIn}\n💰 *Received:* (Market Rate)\n🔗 [View on Explorer](https://celoscan.io/tx/${result.hash})`,
+              `${message.text}\n\n✅ *Swap Successful!*\n*Exchanged:* ${amount} ${tokenIn}\n*Received:* (Market Rate)\n🔗 [View on Explorer](https://celoscan.io/tx/${result.hash})`,
               {
                 chat_id: message.chat.id,
                 message_id: message.message_id,
@@ -514,7 +514,7 @@ app.post(["/webhooks/telegram", "/webhooks/telegram/"], async (req, res) => {
 
             await createRecurringTransfer(payload as any);
             await bot?.editMessageText(
-              `${message.text}\n\n📅 *Schedule Active!*\n👤 *Recipient:* \`${target.name}\` (${target.address})\n💰 *Amount:* ${amount} ${token}\n⏱️ *Frequency:* Every ${freq}s\n🔢 *Total Transfers:* ${total}`,
+              `${message.text}\n\n📅 *Schedule Active!*\n*Recipient:* \`${target.name}\` (${target.address})\n*Amount:* ${amount} ${token}\n*Frequency:* Every ${freq}s\n*Total Transfers:* ${total}`,
               {
                 chat_id: message.chat.id,
                 message_id: message.message_id,

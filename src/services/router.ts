@@ -38,7 +38,7 @@ export async function routeMessage(message: IncomingMessage): Promise<void> {
   if (lowerText === "/start" || lowerText === "hi" || lowerText === "hello") {
     await reply(
       message,
-      `👋 *Welcome to FX RemitBot!*
+      ` *Welcome to FX RemitBot!*
 
 Your AI-powered assistant for lightning-fast, high-trust remittances on Celo.
 
@@ -47,12 +47,12 @@ What would you like to do today?`,
         reply_markup: {
           inline_keyboard: [
             [
-              { text: "💸 Send Money", callback_data: "menu_send" },
-              { text: "💳 Balance", callback_data: "menu_balance" },
+              { text: "Send Money", callback_data: "menu_send" },
+              { text: "Balance", callback_data: "menu_balance" },
             ],
             [
-              { text: "👤 Contacts", callback_data: "menu_contacts" },
-              { text: "🧹 Reset", callback_data: "menu_reset" },
+              { text: "Contacts", callback_data: "menu_contacts" },
+              { text: "Reset", callback_data: "menu_reset" },
             ],
           ],
         },
@@ -64,7 +64,7 @@ What would you like to do today?`,
   if (lowerText === "/reset") {
     await reply(
       message,
-      `⚠️ *Confirm Reset*
+      `*Confirm Reset*
 Are you sure you want to clear your conversation history? This will help if the AI is confused, but it will forget our current chat.`,
       {
         reply_markup: {
@@ -103,7 +103,7 @@ Are you sure you want to clear your conversation history? This will help if the 
   if (lowerText === "/help") {
     await reply(
       message,
-      `💡 *RemitBot Help*
+      ` *RemitBot Help*
 
 You can talk to me in natural language, or use these commands:
 • /start - Main dashboard
