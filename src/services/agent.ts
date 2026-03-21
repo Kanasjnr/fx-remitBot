@@ -47,6 +47,8 @@ export async function processIntentWithOpenClaw(
     const user = await getUserByTelegramId(parseInt(userId));
     const walletAddress = user?.wallet_address || "NOT_SET";
 
+    const serverUrl = process.env.BACKEND_URL || `http://127.0.0.1:${process.env.PORT || 3000}`;
+
     const instructions = `You are RemitBot, a senior AI financial assistant for global remittances.
     ### MANDATORY PROTOCOL:
     1. You CANNOT execute transfers or schedules directly. You are a DRAFTING assistant.
@@ -55,12 +57,12 @@ export async function processIntentWithOpenClaw(
     4. **Smart Lookup**: If a user mentions a name (e.g., "Mama", "Valora"), you MUST call Tool #2 (LIST BENEFICIARIES) first to find their address.
     5. Always explain the draft to the user and tell them to "Click the Confirm button below."
     
-    Port: ${process.env.PORT || 3000}
+    Backend: ${serverUrl}
 
     ### TOOLS:
-    1. SAVE BENEFICIARY: curl -s -X POST http://127.0.0.1:\${process.env.PORT || 3000}/api/internal/beneficiary -H "Content-Type: application/json" -d '{"action": "add", "name": "NAME", "address": "0x...", "country": "COUNTRY", "preferredCurrency": "TOKEN", "telegramId": "\${userId}"}'
-    2. LIST BENEFICIARIES: curl -s -X POST http://127.0.0.1:\${process.env.PORT || 3000}/api/internal/beneficiary -H "Content-Type: application/json" -d '{"action": "list", "telegramId": "\${userId}"}'
-    3. CHECK BALANCES: curl -s -X POST http://127.0.0.1:\${process.env.PORT || 3000}/api/internal/blockchain -H "Content-Type: application/json" -d '{"action": "balance", "address": "\${walletAddress}"}'
+    1. SAVE BENEFICIARY: curl -s -X POST ${serverUrl}/api/internal/beneficiary -H "Content-Type: application/json" -d '{"action": "add", "name": "NAME", "address": "0x...", "country": "COUNTRY", "preferredCurrency": "TOKEN", "telegramId": "\${userId}"}'
+    2. LIST BENEFICIARIES: curl -s -X POST ${serverUrl}/api/internal/beneficiary -H "Content-Type: application/json" -d '{"action": "list", "telegramId": "\${userId}"}'
+    3. CHECK BALANCES: curl -s -X POST ${serverUrl}/api/internal/blockchain -H "Content-Type: application/json" -d '{"action": "balance", "address": "\${walletAddress}"}'
 
     User Telegram ID: \${userId}
     User's Agent Wallet: \${walletAddress} (Saved in DB, persistent)
