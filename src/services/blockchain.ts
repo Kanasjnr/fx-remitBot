@@ -1,4 +1,5 @@
-import { createPublicClient, http, formatEther, parseAbi } from "viem";
+import { createPublicClient, createWalletClient, http, formatEther, parseAbi } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
 import { celo } from "viem/chains";
 import dotenv from "dotenv";
 
@@ -10,7 +11,16 @@ const ERC20_ABI = parseAbi([
   "function allowance(address owner, address spender) view returns (uint256)",
   "function decimals() view returns (uint8)",
   "function symbol() view returns (string)",
+  "function approve(address spender, uint256 amount) returns (bool)",
 ]);
+
+// Mento Broker ABI
+const BROKER_ABI = parseAbi([
+  "function swapIn(address tokenIn, address tokenOut, uint256 amountIn, uint256 minAmountOut, address[] calldata path) returns (uint256)",
+  "function getAmountOut(address tokenIn, address tokenOut, uint256 amountIn) view returns (uint256)",
+]);
+
+const MENTO_BROKER = "0xad766ae797669ba8a2a86a63520199e19865f808";
 
 // Celo Mainnet Addresses
 export const TOKENS = {
@@ -74,7 +84,69 @@ export async function getBalance(
       value: balance.toString(),
     };
   } catch (error) {
-    console.error(`Error fetching ${tokenSymbol} balance:`, error);
+    console.error("Transfer Error:", error);
+    throw error;
+  }
+}
+
+export async function swapTokens(
+  privateKey: `0x${string}`,
+  fromToken: keyof typeof TOKENS,
+  toToken: keyof typeof TOKENS,
+  amount: string,
+) {
+  try {
+    const account = privateKeyToAccount(privateKey);
+    const walletClient = createWalletClient({
+      account,
+      chain: celo,
+      transport: http(process.env.CELO_RPC_URL || "https://forno.celo.org"),
+    });
+
+    const tokenIn = TOKENS[fromToken];
+    const tokenOut = TOKENS[toToken];
+    const amountIn = BigInt(
+      Math.floor(parseFloat(amount) * 10 ** tokenIn.decimals),
+    );
+
+    // 1. Get Quote
+    const amountOut = await publicClient.readContract({
+      address: MENTO_BROKER,
+      abi: BROKER_ABI,
+      functionName: "getAmountOut",
+      args: [tokenIn.address as `0x${string}`, tokenOut.address as `0x${string}`, amountIn],
+    });
+
+    // 2. Approve if not CELO (CELO is native and handled differently in some pools, but Mento ERC20 CELO needs approval)
+    const approveTx = await walletClient.writeContract({
+      address: tokenIn.address as `0x${string}`,
+      abi: ERC20_ABI,
+      functionName: "approve",
+      args: [MENTO_BROKER, amountIn],
+    });
+    await publicClient.waitForTransactionReceipt({ hash: approveTx });
+
+    // 3. Execute Swap (path is empty for direct pools)
+    const hash = await walletClient.writeContract({
+      address: MENTO_BROKER,
+      abi: BROKER_ABI,
+      functionName: "swapIn",
+      args: [
+        tokenIn.address as `0x${string}`,
+        tokenOut.address as `0x${string}`,
+        amountIn,
+        (amountOut * 98n) / 100n, // 2% slippage
+        [],
+      ],
+    });
+
+    return {
+      hash,
+      amountIn: amount,
+      amountOut: (Number(amountOut) / 10 ** tokenOut.decimals).toFixed(4),
+    };
+  } catch (error) {
+    console.error("Swap Error:", error);
     throw error;
   }
 }

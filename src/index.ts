@@ -427,6 +427,51 @@ app.post(["/webhooks/telegram", "/webhooks/telegram/"], async (req, res) => {
         return;
       }
 
+      if (data?.startsWith("swap_c:")) {
+        const [, tokenIn, tokenOut, amount] = data.split(":") as [string, string, string, string];
+        const internalUserId = await getInternalUserId(from.id);
+
+        if (internalUserId && message) {
+          await bot?.answerCallbackQuery(id, { text: "Executing swap..." });
+          await bot?.editMessageText(
+            `${message.text}\n\n⏳ *Executing swap: ${amount} ${tokenIn} ➡️ ${tokenOut}...*`,
+            {
+              chat_id: message.chat.id,
+              message_id: message.message_id,
+              parse_mode: "Markdown",
+            },
+          );
+
+          try {
+            const result = await sendMentoSwap(
+              internalUserId as string,
+              tokenIn as any,
+              tokenOut as any,
+              amount,
+            );
+
+            await bot?.editMessageText(
+              `${message.text}\n\n✅ *Swap Successful!*\n🪙 *Exchanged:* ${amount} ${tokenIn}\n💰 *Received:* (Market Rate)\n🔗 [View on Explorer](https://celoscan.io/tx/${result.hash})`,
+              {
+                chat_id: message.chat.id,
+                message_id: message.message_id,
+                parse_mode: "Markdown",
+              },
+            );
+          } catch (swapErr: any) {
+            await bot?.editMessageText(
+              `${message.text}\n\n❌ *Swap Failed:* ${swapErr.message}`,
+              {
+                chat_id: message.chat.id,
+                message_id: message.message_id,
+                parse_mode: "Markdown",
+              },
+            );
+          }
+        }
+        return;
+      }
+
       if (data?.startsWith("sch_c:")) {
         const [, to, amount, token, freq, total] = data.split(":") as [string, string, string, string, string, string];
         const internalUserId = await getInternalUserId(from.id);
