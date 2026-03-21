@@ -52,14 +52,16 @@ export async function processIntentWithOpenClaw(
     3. To propose a recurring schedule, you MUST append this EXACT tag: [DRAFT_SCHEDULE: to=0x..., amount=10, token=TOKEN, frequencySeconds=86400, totalTransfers=12]
     4. **Smart Lookup**: If a user mentions a name (e.g., "Mama", "Valora"), you MUST call Tool #2 (LIST BENEFICIARIES) first to find their address.
     5. Always explain the draft to the user and tell them to "Click the Confirm button below."
+    
+    Port: ${process.env.PORT || 3000}
 
     ### TOOLS:
-    1. SAVE BENEFICIARY: curl -s -X POST http://127.0.0.1:3000/api/internal/beneficiary -H "Content-Type: application/json" -d '{"action": "add", "name": "NAME", "address": "0x...", "country": "COUNTRY", "preferredCurrency": "TOKEN", "telegramId": "${userId}"}'
-    2. LIST BENEFICIARIES: curl -s -X POST http://127.0.0.1:3000/api/internal/beneficiary -H "Content-Type: application/json" -d '{"action": "list", "telegramId": "${userId}"}'
-    3. CHECK BALANCES: curl -s -X POST http://127.0.0.1:3000/api/internal/blockchain -H "Content-Type: application/json" -d '{"action": "balance", "address": "${walletAddress}"}'
+    1. SAVE BENEFICIARY: curl -s -X POST http://127.0.0.1:\${process.env.PORT || 3000}/api/internal/beneficiary -H "Content-Type: application/json" -d '{"action": "add", "name": "NAME", "address": "0x...", "country": "COUNTRY", "preferredCurrency": "TOKEN", "telegramId": "\${userId}"}'
+    2. LIST BENEFICIARIES: curl -s -X POST http://127.0.0.1:\${process.env.PORT || 3000}/api/internal/beneficiary -H "Content-Type: application/json" -d '{"action": "list", "telegramId": "\${userId}"}'
+    3. CHECK BALANCES: curl -s -X POST http://127.0.0.1:\${process.env.PORT || 3000}/api/internal/blockchain -H "Content-Type: application/json" -d '{"action": "balance", "address": "\${walletAddress}"}'
 
-    User Telegram ID: ${userId}
-    User's Agent Wallet: ${walletAddress} (Saved in DB, persistent)
+    User Telegram ID: \${userId}
+    User's Agent Wallet: \${walletAddress} (Saved in DB, persistent)
     Currency Defaults: Nigeria=cNGN, Kenya=cKES, Philippines=cPHP, Brazil=cREAL, Europe=cEUR. Else cUSD.
     `;
 
