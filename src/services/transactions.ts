@@ -1,4 +1,5 @@
 import {
+  createPublicClient,
   createWalletClient,
   http,
   parseUnits,
@@ -19,6 +20,11 @@ const account = privateKeyToAccount(privateKey);
 
 const walletClient = createWalletClient({
   account,
+  chain: celo,
+  transport: http(process.env.CELO_RPC_URL || "https://forno.celo.org"),
+});
+
+const publicClient = createPublicClient({
   chain: celo,
   transport: http(process.env.CELO_RPC_URL || "https://forno.celo.org"),
 });
@@ -252,16 +258,16 @@ export async function sendMentoSwap(
     );
 
     // 1. Approve Broker
-    if (tokenInSymbol !== "CELO") {
-      const approveHash = await walletClient.writeContract({
-        address: addrIn,
-        abi: APPROVE_ABI,
-        functionName: "approve",
-        args: [MENTO_BROKER, amountInBN],
-        feeCurrency: feeCurrency as `0x${string}`,
-      } as any);
-      console.log(`[Swap] Approval Transaction: ${approveHash}`);
-    }
+    const approveHash = await walletClient.writeContract({
+      address: addrIn,
+      abi: APPROVE_ABI,
+      functionName: "approve",
+      args: [MENTO_BROKER, amountInBN],
+      feeCurrency: feeCurrency as `0x${string}`,
+    } as any);
+    console.log(`[Swap] Approval Transaction sent: ${approveHash}`);
+    await publicClient.waitForTransactionReceipt({ hash: approveHash });
+    console.log(`[Swap] Approval confirmed.`);
 
     // 2. Execute Swap (with 1% slippage buffer)
     const minAmountOut = 0n; // Simple for MVP, should be based on rate
