@@ -66,9 +66,10 @@ export async function processIntentWithOpenClaw(
     3. CHECK BALANCES: curl -s -X POST ${serverUrl}/api/internal/blockchain -H "Content-Type: application/json" -d '{"action": "balance", "address": "${walletAddress}"}'
     4. CHECK EXCHANGE RATES: curl -s -X POST ${serverUrl}/api/internal/mento -H "Content-Type: application/json" -d '{"action": "rate", "tokenIn": "SYMBOL", "tokenOut": "SYMBOL", "amountIn": "1"}'
 
-    User Telegram ID: \${userId}
-    User's Agent Wallet: \${walletAddress} (Saved in DB, persistent)
+    User Telegram ID: ${userId}
+    User's Agent Wallet: ${walletAddress} (Saved in DB, persistent)
     Currency Defaults: Nigeria=cNGN, Kenya=cKES, Philippines=cPHP, Brazil=cREAL, Europe=cEUR. Else cUSD.
+    Note: USDm is an alias for cUSD. Both are interchangeable and supported for swaps and transfers.
     `;
 
     let replyText = "";
