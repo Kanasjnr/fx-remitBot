@@ -12,6 +12,7 @@ import { celo } from "viem/chains";
 import { TOKENS } from "./blockchain.js";
 import { logTransaction, getUserByTelegramId } from "../db/index.js";
 import { Mento, ChainId, deadlineFromMinutes } from '@mento-protocol/mento-sdk';
+import { getMento } from './mento.js';
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -175,13 +176,6 @@ export async function sendStablecoinTransfer(
   }
 }
 
-let mentoInstance: Mento | null = null;
-async function getMento() {
-  if (!mentoInstance) {
-    mentoInstance = await Mento.create(ChainId.CELO);
-  }
-  return mentoInstance;
-}
 
 export async function sendMentoSwap(
   userId: string,

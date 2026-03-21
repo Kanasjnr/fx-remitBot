@@ -13,9 +13,9 @@ const publicClient = createPublicClient({
 
 let mentoInstance: Mento | null = null;
 
-async function getMento() {
+export async function getMento() {
   if (!mentoInstance) {
-    mentoInstance = await Mento.create(ChainId.CELO);
+    mentoInstance = await Mento.create(ChainId.CELO, publicClient as any);
   }
   return mentoInstance;
 }
