@@ -168,9 +168,9 @@ export async function sendStablecoinTransfer(
 }
 
 const MENTO_BROKER =
-  "0x777b8E2F5f356c5c284342AFbf009D6552450D69" as `0x${string}`;
+  "0xad766ae797669ba8a2a86a63520199e19865f808" as `0x${string}`;
 const EXCHANGE_PROVIDER =
-  "0x22d9db95E6Ae61c104A7B6F6C78D7993B94ec901" as `0x${string}`; // BiPoolManager
+  "0x22d9db95e6ae61c104a7b6f6c78d7993b94ec901" as `0x${string}`; // BiPoolManager
 
 const BROKER_ABI = [
   {

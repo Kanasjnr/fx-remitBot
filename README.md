@@ -6,8 +6,9 @@ FX RemitBot is a professional-grade AI financial assistant for Telegram and What
 
 Unlike traditional bots that execute transactions automatically, RemitBot acts as a Senior Drafting Assistant. This architecture ensures that the AI can never move funds without explicit human consent.
 
-- **Intent Parsing**: The AI understands natural language requests like "Remit $50 to Kenya."
-- **Drafting**: The AI proposes a transaction but cannot execute it.
+-   **AI-Driven Remittances**: Send funds using natural language ("Send 10 cUSD to Mama").
+-   **Native Token Swaps**: Instantly exchange CELO and stablecoins (cUSD, cKES, etc.) via Mento Protocol.
+-   **Drafting Protocol**: All AI-proposed transactions require one-tap manual confirmation (Security First).
 - **Interactive Confirmation**: A secure inline keyboard allows the user to Confirm or Cancel before any funds move.
 
 ### Technical Flow
