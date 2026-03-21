@@ -181,6 +181,19 @@ export async function deleteBeneficiary(userId: string, identifier: string) {
         return { success: false, error: `Beneficiary '${identifier}' not found.` };
       }
 
+      // 1. Delete linked recurring transfers (Mandatory for demo functionality)
+      await supabase
+        .from("recurring_transfers")
+        .delete()
+        .eq("beneficiary_id", target.id);
+
+      // 2. Set beneficiary_id to NULL in transactions (Preserve history but break link)
+      await supabase
+        .from("transactions")
+        .update({ beneficiary_id: null })
+        .eq("beneficiary_id", target.id);
+
+      // 3. Delete the beneficiary
       const { error } = await supabase
         .from("beneficiaries")
         .delete()
@@ -188,7 +201,7 @@ export async function deleteBeneficiary(userId: string, identifier: string) {
         .eq("user_id", userId);
 
       if (error) throw error;
-      return { success: true, message: `Beneficiary '${target.name}' deleted successfully.` };
+      return { success: true, message: `Beneficiary '${target.name}' and its linked schedules have been deleted.` };
     },
     2,
     1000,
