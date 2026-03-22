@@ -98,7 +98,7 @@ export async function executeBeneficiaryTool(
           });
         }
 
-        const { data, error } = await supabase
+        let { data, error } = await supabase
           .from("beneficiaries")
           .insert({
             user_id: user.id,
@@ -109,6 +109,25 @@ export async function executeBeneficiaryTool(
           })
           .select()
           .single();
+
+        // If 'preferred_currency' column is missing (PGRST204), retry without it
+        if (error && error.code === "PGRST204") {
+          console.warn(
+            "[BeneficiaryTool] 'preferred_currency' column missing. Retrying insert without it.",
+          );
+          const { data: retryData, error: retryError } = await supabase
+            .from("beneficiaries")
+            .insert({
+              user_id: user.id,
+              name: name,
+              address: address,
+              country: country,
+            })
+            .select()
+            .single();
+          data = retryData;
+          error = retryError;
+        }
 
         if (error) {
           if (error.code === "23505") {
