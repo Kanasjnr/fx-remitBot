@@ -69,19 +69,30 @@ export function startCron() {
             status,
           });
 
-          const prompt = `SYSTEM_CRON_EXECUTION: Please execute a transfer of ${schedule.amount} ${schedule.currency} to beneficiary "${schedule.beneficiaries?.name}" (Address: ${schedule.beneficiaries?.address}). This is a scheduled payment. Inform the user of the success via Telegram.`;
-
-          await withRetry(
+          // 1. Execute the transfer directly (Autonomous/System Execution)
+          const { sendStablecoinTransfer } = await import("./transactions.js");
+          const txResult = await withRetry(
             async () => {
-              return await processIntentWithOpenClaw(
-                schedule.users?.telegram_id.toString(),
-                prompt,
-                schedule.users?.telegram_id.toString(),
+              return await sendStablecoinTransfer(
+                schedule.user_id,
+                schedule.beneficiaries?.address as `0x${string}`,
+                schedule.amount.toString(),
+                schedule.currency as any,
+                "cUSD", // Use cUSD for gas by default
               );
             },
             2,
             2000,
-            `Agent Execution for Schedule ${schedule.id}`,
+            `Blockchain Execution for Schedule ${schedule.id}`,
+          );
+
+          // 2. Notify the user via AI after successful execution
+          const prompt = `SYSTEM_CRON_EXECUTION_SUCCESS: I have just successfully executed your scheduled transfer of ${schedule.amount} ${schedule.currency} to ${schedule.beneficiaries?.name}. Transaction Hash: ${txResult.hash}. Please inform the user and share the explorer link: ${txResult.explorerUrl}`;
+
+          await processIntentWithOpenClaw(
+            schedule.users?.telegram_id.toString(),
+            prompt,
+            schedule.users?.telegram_id.toString(),
           );
         } catch (innerError) {
           console.error(

@@ -62,11 +62,13 @@ export async function processIntentWithOpenClaw(
     Backend: ${serverUrl}
 
     ### TOOLS:
-    1. SAVE BENEFICIARY: curl -s -X POST ${serverUrl}/api/internal/beneficiary -H "Content-Type: application/json" -d '{"action": "add", "name": "NAME", "address": "0x...", "country": "COUNTRY", "preferredCurrency": "TOKEN", "telegramId": "\${userId}"}'
+    1. SAVE BENEFICIARY: curl -s -X POST ${serverUrl}/api/internal/beneficiary -H "Content-Type: application/json" -d '{"action": "add", "name": "NAME", "address": "0x...", "country": "COUNTRY", "preferredCurrency": "TOKEN", "telegramId": "${userId}"}'
     2. LIST BENEFICIARIES: curl -s -X POST ${serverUrl}/api/internal/beneficiary -H "Content-Type: application/json" -d '{"action": "list", "telegramId": "${userId}"}'
     3. DELETE BENEFICIARY: curl -s -X POST ${serverUrl}/api/internal/beneficiary -H "Content-Type: application/json" -d '{"action": "delete", "name": "NAME", "telegramId": "${userId}"}'
-    3. CHECK BALANCES: curl -s -X POST ${serverUrl}/api/internal/blockchain -H "Content-Type: application/json" -d '{"action": "balance", "address": "${walletAddress}"}'
-    4. CHECK EXCHANGE RATES: curl -s -X POST ${serverUrl}/api/internal/mento -H "Content-Type: application/json" -d '{"action": "rate", "tokenIn": "SYMBOL", "tokenOut": "SYMBOL", "amountIn": "1"}'
+    4. LIST SCHEDULES: curl -s -X POST ${serverUrl}/api/internal/schedule -H "Content-Type: application/json" -d '{"action": "list", "telegramId": "${userId}"}'
+    5. CANCEL SCHEDULE: curl -s -X POST ${serverUrl}/api/internal/schedule -H "Content-Type: application/json" -d '{"action": "cancel", "scheduleId": "ID", "telegramId": "${userId}"}'
+    6. CHECK BALANCES: curl -s -X POST ${serverUrl}/api/internal/blockchain -H "Content-Type: application/json" -d '{"action": "balance", "address": "${walletAddress}"}'
+    7. CHECK EXCHANGE RATES: curl -s -X POST ${serverUrl}/api/internal/mento -H "Content-Type: application/json" -d '{"action": "rate", "tokenIn": "SYMBOL", "tokenOut": "SYMBOL", "amountIn": "1"}'
 
     User Telegram ID: ${userId}
     User's Agent Wallet: ${walletAddress} (Saved in DB, persistent)
