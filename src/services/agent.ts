@@ -50,19 +50,22 @@ export async function processIntentWithOpenClaw(
     const serverUrl = process.env.BACKEND_URL || `http://127.0.0.1:${process.env.PORT || 3000}`;
 
     const instructions = `You are RemitBot, a senior AI financial assistant for global remittances.
-    ### MANDATORY PROTOCOL:
-    1. You CANNOT execute transfers or schedules directly. You are a DRAFTING assistant.
-    2. To propose a transfer, you MUST append this EXACT tag: [DRAFT_TX: to=0x..., amount=1.5, token=SYMBOL]
-    3. To propose a recurring schedule, you MUST append this EXACT tag: [DRAFT_SCHEDULE: to=0x..., amount=10, token=TOKEN, frequencySeconds=86400, totalTransfers=12]
-    4. To propose a token swap, you MUST append this EXACT tag: [DRAFT_SWAP: from=SYMBOL, to=SYMBOL, amount=1.5]
-    5. **Smart Lookup**: If a user mentions a name (e.g., "Mama", "Valora"), you MUST call Tool #2 (LIST BENEFICIARIES) first to find their address.
-    3. DELETE BENEFICIARY: curl -s -X POST ${serverUrl}/api/internal/beneficiary -H "Content-Type: application/json" -d '{"action": "delete", "name": "NAME", "telegramId": "${userId}"}'
-    6. Always explain the draft to the user and tell them to "Click the Confirm button below."
-    
-    Backend: ${serverUrl}
+    ### IDENTITY & CONTEXT:
+    - You are in a PRIVATE 1-on-1 chat with the user.
+    - User Telegram ID: ${userId}. YOU MUST USE THIS ID for all tool calls. NEVER ask the user for their ID.
+    - User's Agent Wallet: ${walletAddress}.
+    - Backend API: ${serverUrl}
 
-    ### TOOLS:
-    1. SAVE BENEFICIARY: curl -s -X POST ${serverUrl}/api/internal/beneficiary -H "Content-Type: application/json" -d '{"action": "add", "name": "NAME", "address": "0x...", "country": "COUNTRY", "preferredCurrency": "TOKEN", "telegramId": "${userId}"}'
+    ### MANDATORY PROTOCOL:
+    1. **Execution**: You CANNOT execute transfers or schedules directly. You are a DRAFTING assistant.
+    2. **Drafting**: To propose a transfer, append: [DRAFT_TX: to=0x..., amount=1.5, token=SYMBOL]
+    3. **Scheduling**: To propose a schedule, append: [DRAFT_SCHEDULE: to=0x..., amount=10, token=TOKEN, frequencySeconds=86400, totalTransfers=12]
+    4. **Swapping**: To propose a swap, append: [DRAFT_SWAP: from=SYMBOL, to=SYMBOL, amount=1.5]
+    5. **Smart Lookup**: If a user mentions a name, you MUST call Tool #2 (LIST BENEFICIARIES) to find their address.
+    6. **Schedules**: To see/cancel schedules, you MUST call Tool #4 or #5.
+    
+    ### TOOLS (Call these to get data or perform actions):
+    1. SAVE BENEFICIARY: curl -s -X POST ${serverUrl}/api/internal/beneficiary -H "Content-Type: application/json" -d '{"action": "add", "name": "NAME", "address": "0x...", "telegramId": "${userId}"}'
     2. LIST BENEFICIARIES: curl -s -X POST ${serverUrl}/api/internal/beneficiary -H "Content-Type: application/json" -d '{"action": "list", "telegramId": "${userId}"}'
     3. DELETE BENEFICIARY: curl -s -X POST ${serverUrl}/api/internal/beneficiary -H "Content-Type: application/json" -d '{"action": "delete", "name": "NAME", "telegramId": "${userId}"}'
     4. LIST SCHEDULES: curl -s -X POST ${serverUrl}/api/internal/schedule -H "Content-Type: application/json" -d '{"action": "list", "telegramId": "${userId}"}'
@@ -70,10 +73,8 @@ export async function processIntentWithOpenClaw(
     6. CHECK BALANCES: curl -s -X POST ${serverUrl}/api/internal/blockchain -H "Content-Type: application/json" -d '{"action": "balance", "address": "${walletAddress}"}'
     7. CHECK EXCHANGE RATES: curl -s -X POST ${serverUrl}/api/internal/mento -H "Content-Type: application/json" -d '{"action": "rate", "tokenIn": "SYMBOL", "tokenOut": "SYMBOL", "amountIn": "1"}'
 
-    User Telegram ID: ${userId}
-    User's Agent Wallet: ${walletAddress} (Saved in DB, persistent)
     Currency Defaults: Nigeria=cNGN, Kenya=cKES, Philippines=cPHP, Brazil=cREAL, Europe=cEUR. Else cUSD.
-    Note: USDm is an alias for cUSD. Both are interchangeable and supported for swaps and transfers.
+    Note: USDm is an alias for cUSD. Both are interchangeable and supported.
     `;
 
     let replyText = "";
@@ -86,7 +87,9 @@ export async function processIntentWithOpenClaw(
       },
     ];
 
-    while (!isDone) {
+    let turnCount = 0;
+    while (!isDone && turnCount < 5) {
+      turnCount++;
       const payload = {
         model: "openclaw:main",
         input: messageHistory,
@@ -95,7 +98,7 @@ export async function processIntentWithOpenClaw(
       };
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout for local LLMs
+      const timeoutId = setTimeout(() => controller.abort(), 60000);
 
       let data: any;
       try {
@@ -116,9 +119,6 @@ export async function processIntentWithOpenClaw(
         data = await response.json();
       } catch (err: any) {
         clearTimeout(timeoutId);
-        if (err.name === "AbortError") {
-          throw new Error("AI Request Timed Out. Please try again.");
-        }
         throw err;
       }
 
@@ -145,15 +145,47 @@ export async function processIntentWithOpenClaw(
             ),
           });
         }
+
         if (outputItem.type === "call") {
           hasToolCall = true;
+          const { method, params, id: callId } = outputItem;
+          console.log(`[OpenClaw] Tool Call: ${method}`, params);
+
+          let toolResult = "";
+          try {
+            // Map tool names to internal API endpoints
+            let endpoint = "";
+            let body = { ...params, telegramId: userId };
+
+            if (method.includes("BENEFICIARY")) endpoint = "/api/internal/beneficiary";
+            else if (method.includes("SCHEDULE")) endpoint = "/api/internal/schedule";
+            else if (method.includes("BALANCE")) endpoint = "/api/internal/blockchain";
+            else if (method.includes("RATE")) endpoint = "/api/internal/mento";
+
+            if (endpoint) {
+              const toolResponse = await fetch(`${serverUrl}${endpoint}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(body),
+              });
+              toolResult = await toolResponse.text();
+            } else {
+              toolResult = `Error: Unknown tool or missing endpoint for method ${method}`;
+            }
+          } catch (e: any) {
+            toolResult = `Error executing tool: ${e.message}`;
+          }
+
+          messageHistory.push({
+            type: "call_result",
+            call_id: callId,
+            content: [{ type: "output_text", text: toolResult }],
+          });
         }
       }
 
       if (!hasToolCall) {
         isDone = true;
-      } else {
-        isDone = true; // For now, assume single turn if tools are involved
       }
     }
 
