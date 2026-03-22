@@ -7,16 +7,24 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // Official ERC-8004 Identity Registry contract on Celo Mainnet
-// Source: https://github.com/erc-8004/erc-8004-contracts
 const IDENTITY_REGISTRY_ADDRESS = '0x8004A169FB4a3325136EB29fA0ceB6D2e539a432' as const;
 
-// Correct ABI based on official skill documentation — register(string agentURI) = ERC721 NFT mint
 const identityRegistryAbi = [
   {
     inputs: [
       { internalType: 'string', name: 'agentURI', type: 'string' },
     ],
     name: 'register',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [
+      { internalType: 'uint256', name: 'tokenId', type: 'uint256' },
+      { internalType: 'string', name: 'agentURI', type: 'string' },
+    ],
+    name: 'setAgentURI',
     outputs: [],
     stateMutability: 'nonpayable',
     type: 'function',
@@ -43,10 +51,6 @@ const identityRegistryAbi = [
 const rpcUrl = process.env.CELO_RPC_URL || 'https://forno.celo.org';
 const privateKey = process.env.AGENT_PRIVATE_KEY as `0x${string}` | undefined;
 
-if (!privateKey) {
-  console.warn('AGENT_PRIVATE_KEY is missing. Agent registration will not work.');
-}
-
 export const account = privateKey ? privateKeyToAccount(privateKey) : null;
 
 export const publicClient = createPublicClient({
@@ -62,12 +66,14 @@ export const walletClient: WalletClient | null = account
     }) as unknown as WalletClient)
   : null;
 
+/**
+ * Registers a new agent (NFT mint).
+ */
 export async function registerRemittanceAgent(): Promise<string> {
   if (!walletClient || !account) {
     throw new Error('Agent wallet not configured. Please set AGENT_PRIVATE_KEY in .env');
   }
 
-  // 1. Check if already registered (balance > 0 means has an NFT token)
   const balance = (await publicClient.readContract({
     address: IDENTITY_REGISTRY_ADDRESS,
     abi: identityRegistryAbi,
@@ -80,38 +86,48 @@ export async function registerRemittanceAgent(): Promise<string> {
     return 'already-registered';
   }
 
-  console.log(`Registering Remittance Bot as an ERC-8004 Agent on Celo Mainnet...`);
-  console.log(`Agent address: ${account.address}`);
-
-  // 2. Submit the registration transaction
   const { request } = await publicClient.simulateContract({
     account,
     address: IDENTITY_REGISTRY_ADDRESS,
     abi: identityRegistryAbi,
     functionName: 'register',
-    args: ['ipfs://bafybeibfawjahbpw3zxltilzwrjvpbpbpbpbpbpbpbpbp'], // placeholder metadata URI
+    args: ['ipfs://placeholder'], 
   });
 
   const txHash = await walletClient.writeContract(request as any);
-  console.log(`Registration transaction submitted: ${txHash}`);
-
-  // 3. Wait for confirmation
   const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash as `0x${string}` });
-  console.log('Registration confirmed in block:', receipt.blockNumber.toString());
-
-  // 4. Parse the Transfer event to get the tokenId (agentId)
+  
   const transferEvents = parseEventLogs({
     abi: identityRegistryAbi,
     logs: receipt.logs,
     eventName: 'Transfer',
   });
 
-  if (transferEvents.length > 0) {
-    const agentId = (transferEvents[0] as any).args.tokenId;
-    console.log(`Successfully registered! Agent ID (Token ID): ${agentId.toString()}`);
-    return agentId.toString();
+  return (transferEvents[0] as any).args.tokenId.toString();
+}
+
+/**
+ * Updates the metadata URI for an existing agent.
+ */
+export async function updateAgentURI(tokenId: string, newURI: string): Promise<string> {
+  if (!walletClient || !account) {
+    throw new Error('Agent wallet not configured.');
   }
 
-  console.log('Registration confirmed but could not parse agent ID from logs.');
-  return 'registered';
+  console.log(`Updating Agent ${tokenId} URI to: ${newURI}...`);
+
+  const { request } = await publicClient.simulateContract({
+    account,
+    address: IDENTITY_REGISTRY_ADDRESS,
+    abi: identityRegistryAbi,
+    functionName: 'setAgentURI',
+    args: [BigInt(tokenId), newURI],
+  });
+
+  const txHash = await walletClient.writeContract(request as any);
+  console.log(`Update transaction submitted: ${txHash}`);
+  
+  await publicClient.waitForTransactionReceipt({ hash: txHash as `0x${string}` });
+  console.log('Update confirmed!');
+  return txHash;
 }
